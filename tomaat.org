@@ -1,0 +1,76 @@
+#+TITLE: Tomaat
+#+PROPERTY: header-args :mkdirp true
+
+* Introduction
+  The tomaat timer is a productivity tool. Tomaat is dutch for tomato
+  and is inspired by the italian registered brand name linked to one
+  such a tool.
+
+  The tool is based on the assumption that human beings are terrible
+  at multitasking. Tomaat therefor times relative small amounts of
+  time, by default 25 minutes, in which a person is to focus on a
+  single task exclusively, making as much progress as possible during
+  this period. After this focus time, a break must be taken during
+  which the person should *not* be focusing on the task. The break
+  period is typically 5 minutes, but after a few tomaten a longer
+  break is advisable.
+
+  This program allows to start a tomaat and label it with a name for
+  the task to focus on. After the focus-period is over, the user is
+  informed about this and is advised to take a break.
+
+* The core namespace  
+  The core namespace exposes the [[Define start-tomaat][start-tomaat]] function. But we need
+  some helper functionality before we can define it. First we create
+  the core namespace definition.
+
+   #+BEGIN_SRC clojure :tangle "src/tomaat/core.clj"
+     (ns tomaat.core)
+   #+END_SRC
+
+** A helper to express time periods
+   We would like to express a duration as a vector of 2 elements;
+   first a numeric value and second a keyword the names the time unit.
+   Eg. src_clojure[:exports code]{[5 :minutes]}. Most javascript apis
+   have millisecond accuracy, so let's define a function that can
+   return how many milliseconds such a vector would express. At the
+   moment there is only a need to express values in minutes (the
+   function will throw an exception when encountering other,
+   unrecognized, units).
+
+   #+BEGIN_SRC clojure :tangle src/tomaat/core.clj
+     (defn- ->ms
+       "Takes a vector of 2 elements; a numeric value and a keyword
+       resembling a time unit. Returns the duration represented in
+       milliseconds."
+       [[v unit]]
+       (case unit
+         :minute (* v 60 1000)
+         :minutes (* v 60 1000)))
+   #+END_SRC
+
+** Define a default value for the work period duration
+   The work period is typically 25 minutes.
+
+   #+BEGIN_SRC clojure  :tangle src/tomaat/core.clj
+     (def focus-period-default-duration [25 :minutes])
+   #+END_SRC
+
+** Define start-tomaat
+   As mentioned, we want the user to pass a label that identifies the
+   task at hand. We also would like the user to be able to override the
+   default value for the work period duration. After the function is
+   called, it reports the current time with the task label, then blocks
+   the current thread of execution for the work period duration, and
+   then reports the end time with the task label and states that it is
+   time to take a break.
+
+   #+BEGIN_SRC clojure  :tangle src/tomaat/core.clj
+     (defn start-tomaat
+       ([task-label] (start-tomaat task-label focus-period-default-duration))
+       ([task-label duration]
+        (println (str (java.util.Date.) " -- Tomaat '" task-label "' started."))
+        (Thread/sleep (->ms duration))
+        (println (str (java.util.Date.) " -- Tomaat '" task-label "' finished."))
+        (println "Please consider taking a break now.")))
+   #+END_SRC
