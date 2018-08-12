@@ -18,7 +18,60 @@
   the task to focus on. After the focus-period is over, the user is
   informed about this and is advised to take a break.
 
-* The core namespace  
+* Building and running
+  The program is written in a literal style. From within emacs
+  org-mode, this document can be tangled into source files, which will
+  be put under a src folder, or be exported as an html file. The
+  tangle.sh and export.sh files in the root of project automate these
+  same tasks from the terminal.
+
+  As the html document and the source files can be rebuild from this
+  document at all times, these output targets are excluded from git in
+  the .gitignore file.
+
+** Clean the git working directory
+
+   The following command removes the auto-produced artifacts from the
+   working folder, if desired.
+
+   #+BEGIN_SRC sh
+     git clean -xdf
+   #+END_SRC
+
+** Export to html
+
+   To export this org document to an html document, issue the
+   following command. The example shows that firefox can show the
+   created html file.
+
+   #+BEGIN_SRC sh
+     ./export.sh
+     firefox tomaat.html
+   #+END_SRC
+
+** Tangle the source code
+
+   And now the command to tangle the source code. This will produce a
+   src directory with a tomaat sub-directory that contains our
+   core.clj file.
+
+   #+BEGIN_SRC sh
+     ./tangle.sh
+   #+END_SRC
+
+** Start a tomaat from the terminal
+
+   To start the program, make shure you first have [[Tangle the source code][tangled the source
+   code]]. Then issue the following command.
+
+   #+BEGIN_SRC sh
+     clojure -m tomaat.core 'See hickey vids'
+
+     # or override default of 25 minutes with 10 minutes
+     # clojure -m tomaat.core 'See hickey vids' 10
+   #+END_SRC
+
+* The core namespace
   The core namespace exposes the [[Define start-tomaat][start-tomaat]] function. But we need
   some helper functionality before we can define it. First we create
   the core namespace definition. At the moment there are no
