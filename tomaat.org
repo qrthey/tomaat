@@ -3,17 +3,16 @@
 
 * Introduction
   The tomaat timer is a productivity tool. Tomaat is dutch for tomato
-  and is inspired by the italian registered brand name linked to one
-  such a tool.
+  and this program is inspired by the italian registered brand name
+  linked to one such a tool.
 
   The tool is based on the assumption that human beings are terrible
-  at multitasking. Tomaat therefor times relative small amounts of
-  time, by default 25 minutes, in which a person is to focus on a
-  single task exclusively, making as much progress as possible during
-  this period. After this focus time, a break must be taken during
-  which the person should *not* be focusing on the task. The break
-  period is typically 5 minutes, but after a few tomaten a longer
-  break is advisable.
+  at multitasking. Tomaat therefor times relative small periods, by
+  default 25 minutes, in which a person is to focus on a single task
+  exclusively, making as much progress as possible during this period.
+  After this focus time, a break must be taken during which the person
+  should *not* be focusing on the task. The break period is typically
+  5 minutes, but after a few tomaten a longer break is advisable.
 
   This program allows to start a tomaat and label it with a name for
   the task to focus on. After the focus-period is over, the user is
