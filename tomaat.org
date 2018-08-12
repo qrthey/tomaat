@@ -4,7 +4,7 @@
 * Introduction
   The tomaat timer is a productivity tool. Tomaat is dutch for tomato
   and this program is inspired by the italian registered brand name
-  linked to one such a tool.
+  linked to one such tool.
 
   The tool is based on the assumption that human beings are terrible
   at multitasking. Tomaat therefor times relative small periods, by
@@ -21,7 +21,10 @@
 * The core namespace  
   The core namespace exposes the [[Define start-tomaat][start-tomaat]] function. But we need
   some helper functionality before we can define it. First we create
-  the core namespace definition.
+  the core namespace definition. At the moment there are no
+  dependencies. The [[A helper to print the current time][current-time-str]] function below uses some
+  java.time types, but as their usage is limited to just one function
+  the namespace does not import them.
 
    #+BEGIN_SRC clojure :tangle "src/tomaat/core.clj"
      (ns tomaat.core)
@@ -29,13 +32,12 @@
 
 ** A helper to express time periods
    We would like to express a duration as a vector of 2 elements;
-   first a numeric value and second a keyword the names the time unit.
-   Eg. src_clojure[:exports code]{[5 :minutes]}. Most javascript apis
-   have millisecond accuracy, so let's define a function that can
-   return how many milliseconds such a vector would express. At the
-   moment there is only a need to express values in minutes (the
-   function will throw an exception when encountering other,
-   unrecognized, units).
+   first a numeric value and second a keyword that names the time
+   unit. Eg. ~[5 :minutes]~. Most javascript apis have millisecond
+   accuracy, so let's define a function that can return how many
+   milliseconds such a vector would express. At the moment there is
+   only a need to express values in minutes (the function will throw
+   an exception when encountering other, unrecognized, units).
 
    #+BEGIN_SRC clojure :tangle src/tomaat/core.clj
      (defn- ->ms
@@ -48,28 +50,62 @@
          :minutes (* v 60 1000)))
    #+END_SRC
 
-** Define a default value for the work period duration
-   The work period is typically 25 minutes.
+** A helper to print the current time
+   Our output will mention the current time. We want it printed with
+   just the current hour and minutes. Function current-time-str
+   returns such a string for the instance it is called.
 
-   #+BEGIN_SRC clojure  :tangle src/tomaat/core.clj
-     (def focus-period-default-duration [25 :minutes])
+   #+BEGIN_SRC clojure :tangle src/tomaat/core.clj
+     (def time-format
+       (java.time.format.DateTimeFormatter/ofPattern "HH:mm"))
+
+     (defn current-time-str
+       "Returns a string describing the current time in the format 'HH:mm'."
+       []
+       (-> (java.time.LocalDateTime/now)
+           (.format time-format)))
    #+END_SRC
 
 ** Define start-tomaat
    As mentioned, we want the user to pass a label that identifies the
-   task at hand. We also would like the user to be able to override the
-   default value for the work period duration. After the function is
-   called, it reports the current time with the task label, then blocks
-   the current thread of execution for the work period duration, and
-   then reports the end time with the task label and states that it is
-   time to take a break.
+   task at hand. We also would like the user to be able to override
+   the default value for the work period duration, which we make 25
+   minutes.
 
-   #+BEGIN_SRC clojure  :tangle src/tomaat/core.clj
+   After the function is called, it reports the current time with the
+   task label, then blocks the current thread of execution for the
+   work period duration, and then reports the end of the tomaat with
+   the currenttime and the task label, and states that it is time to
+   take a break.
+
+   #+BEGIN_SRC clojure :tangle src/tomaat/core.clj
      (defn start-tomaat
-       ([task-label] (start-tomaat task-label focus-period-default-duration))
+       "Takes a task label and an optional duration in the
+       format [x :minutes], reports the start of the tomaat, waits for the
+       duration to expire, and reports the end of the tomaat. If no
+       duraction is given a default of 25 minutes is used."
+       ([task-label] (start-tomaat task-label [25 :minutes]))
        ([task-label duration]
-        (println (str (java.util.Date.) " -- Tomaat '" task-label "' started."))
+        (println (str (current-time-str) " -- Tomaat '" task-label "' started."))
         (Thread/sleep (->ms duration))
-        (println (str (java.util.Date.) " -- Tomaat '" task-label "' finished."))
-        (println "Please consider taking a break now.")))
+        (println (str (current-time-str) " -- Tomaat '" task-label "' finished. "
+                      "Please consider taking a break now."))))
+
+   #+END_SRC
+
+** Create a main entrypoint
+   In order to run as a cli program, and not just from the clojure
+   repl, we define a main function that parses its arguments and calls
+   the [[Define start-tomaat][start-tomaat]] function.
+
+   #+BEGIN_SRC clojure :tangle src/tomaat/core.clj
+     (defn -main
+       "The main entry point to the program. Parses an optional numeric value
+       as a value in minutes calls start-tomaat. If no numeric value is
+       passed, start-tomaat is called without a duration."
+       [& [task-label mins :as args]]
+       #_(println args)
+       (if mins
+         (start-tomaat task-label [(Integer/parseInt mins) :minutes])
+         (start-tomaat task-label)))
    #+END_SRC
