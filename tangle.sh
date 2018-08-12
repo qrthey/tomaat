@@ -1,3 +1,5 @@
 #!/bin/bash
 
-emacs --batch -l org --eval '(org-babel-tangle-file "tomaat.org")'
+emacs tomaat.org --batch \
+      --eval "(org-babel-tangle)" \
+      --kill
