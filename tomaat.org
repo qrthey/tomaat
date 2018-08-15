@@ -188,7 +188,9 @@
 ** Create a main entrypoint
    In order to run as a cli program, and not just from the clojure
    repl, we define a main function that parses its arguments and calls
-   the [[Define start-tomaat][start-tomaat]] function.
+   the [[Define start-tomaat][start-tomaat]] function. The function explicitly calls
+   System/exit to ensure that all java threads are stopped as soon as
+   the messages are handled.
 
    #+BEGIN_SRC clojure :tangle src/tomaat/core.clj
      (defn -main
@@ -198,7 +200,8 @@
        [& [task-label mins :as args]]
        (if mins
          (start-tomaat task-label :duration [(Integer/parseInt mins) :minutes])
-         (start-tomaat task-label)))
+         (start-tomaat task-label))
+       (System/exit 0))
    #+END_SRC
 
    #+RESULTS:
