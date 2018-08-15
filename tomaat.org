@@ -16,7 +16,9 @@
 
   This program allows to start a tomaat and label it with a name for
   the task to focus on. After the focus-period is over, the user is
-  informed about this and is advised to take a break.
+  informed about this and is advised to take a break. This notice is
+  done with a message box by default, but a silent mode, where
+  reporting is only done to standard out, is available.
 
 * Building and running
   The program is written in a literal style. From within emacs
@@ -74,14 +76,20 @@
 * The core namespace
   The core namespace exposes the [[Define start-tomaat][start-tomaat]] function. But we need
   some helper functionality before we can define it. First we create
-  the core namespace definition. At the moment there are no
-  dependencies. The [[A helper to print the current time][current-time-str]] function below uses some
-  java.time types, but as their usage is limited to just one function
-  the namespace does not import them.
+  the core namespace definition.
+
+  At moment we only require the tomaat.ui-utils namespace, without
+  aliasing it as it is only used in [[Define start-tomaat][start-tomaat]]. Likewise, we don't
+  import some java.time types, as only [[A helper to format the current time][current-time-str]] makes use of
+  them.
 
    #+BEGIN_SRC clojure :tangle "src/tomaat/core.clj"
-     (ns tomaat.core)
+     (ns tomaat.core
+       (:require [tomaat.ui-utils]))
    #+END_SRC
+
+   #+RESULTS:
+   : nil
 
 ** A helper to express time periods
    We would like to express a duration as a vector of 2 elements;
@@ -103,8 +111,11 @@
          :minutes (* v 60 1000)))
    #+END_SRC
 
-** A helper to print the current time
-   Our output will mention the current time. We want it printed with
+   #+RESULTS:
+   : #'user/->ms
+
+** A helper to format the current time
+   Our output will mention the current time. We want it reported with
    just the current hour and minutes. Function current-time-str
    returns such a string for the instance it is called.
 
@@ -112,12 +123,30 @@
      (def time-format
        (java.time.format.DateTimeFormatter/ofPattern "HH:mm"))
 
-     (defn current-time-str
+     (defn- current-time-str
        "Returns a string describing the current time in the format 'HH:mm'."
        []
        (-> (java.time.LocalDateTime/now)
            (.format time-format)))
    #+END_SRC
+
+   #+RESULTS:
+   : #'user/time-format#'user/current-time-str
+
+** A helper to show formatted messages in the terminal
+   Show messages with the current time in the terminal.
+
+   #+BEGIN_SRC clojure :tangle "src/tomaat/core.clj"
+     (defn- terminal-message
+       "Prints a formatted message with the current time, task-label and
+       message to standard-out."
+       [task-label message]
+       (println (str (current-time-str) " Tomaat '" task-label "' - " message)))
+   #+END_SRC
+
+   #+RESULTS:
+   : #'user/terminal-message
+
 
 ** Define start-tomaat
    As mentioned, we want the user to pass a label that identifies the
@@ -132,19 +161,29 @@
    take a break.
 
    #+BEGIN_SRC clojure :tangle src/tomaat/core.clj
-     (defn start-tomaat
-       "Takes a task label and an optional duration in the
-       format [x :minutes], reports the start of the tomaat, waits for the
-       duration to expire, and reports the end of the tomaat. If no
-       duraction is given a default of 25 minutes is used."
-       ([task-label] (start-tomaat task-label [25 :minutes]))
-       ([task-label duration]
-        (println (str (current-time-str) " -- Tomaat '" task-label "' started."))
-        (Thread/sleep (->ms duration))
-        (println (str (current-time-str) " -- Tomaat '" task-label "' finished. "
-                      "Please consider taking a break now."))))
+     (defn- start-tomaat
+       "Takes a task label and options 'duration' and 'silent'. The duration
+       is in the format [x :minutes]. If no duraction is given a default of
+       25 minutes is used.
 
+       The function reports that start of the tomaat and, after the
+       duration expires, the end of it.
+
+       If the 'silent' option is true, end reporting only happens in the
+       terminal, otherwise both the terminal and a message box signal the
+       end of the tomaat."
+       [task-label & {:keys [duration silent] :or {duration [25 :minutes]}}]
+       (terminal-message task-label "Started.")
+       (Thread/sleep (->ms duration))
+       (terminal-message task-label "Finished! Consider taking a break now.")
+       (when-not silent
+         (tomaat.ui-utils/popup-message
+          "Tomaat Finished!"
+          (str "Tomaat '" task-label "' Finished! Consider taking a break now."))))
    #+END_SRC
+
+   #+RESULTS:
+   : #'user/start-tomaat
 
 ** Create a main entrypoint
    In order to run as a cli program, and not just from the clojure
@@ -159,6 +198,27 @@
        [& [task-label mins :as args]]
        #_(println args)
        (if mins
-         (start-tomaat task-label [(Integer/parseInt mins) :minutes])
+         (start-tomaat task-label :duration [(Integer/parseInt mins) :minutes])
          (start-tomaat task-label)))
+
+     (-main "Do it" "1")
    #+END_SRC
+
+   #+RESULTS:
+   : #'user/-main
+
+* The ui-utils namespace
+  When a tomaat is finished, perhaps a more noticable message than
+  mere reporting the fact to standard out is desired. This namespace
+  exposes a function for showing message boxes with a title and a
+  message.
+
+** A helper to pop up a message box
+  #+BEGIN_SRC clojure :tangle "src/tomaat/ui_utils.clj"
+    (ns tomaat.ui-utils)
+
+    (defn popup-message
+      [title message]
+      (javax.swing.JOptionPane/showMessageDialog
+       nil message title javax.swing.JOptionPane/INFORMATION_MESSAGE))
+  #+END_SRC
