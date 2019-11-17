@@ -1,3 +1,6 @@
 .cpcache/
+Dockerfile
+project.clj
+build-docker-image.sh
 src/
 tomaat.html

@@ -73,23 +73,64 @@
      # clojure -m tomaat.core 'See hickey vids' 10
    #+END_SRC
 
+** Build a docker image and run in a container
+
+   To build a docker image, we need to create a Dockerfile. Our image
+   takes the clojure base image which already has leiningen and java
+   installed. We add our [[The leiningen project file][project.clj file]] and have leiningen fetch all
+   dependencies mentioned in it. Then we add the src folder to our app
+   path and set up an endpoint-cmd combination. In docker this
+   achieves that lein run is called with the 2 arguments in cmd unless
+   the caller of ~docker run~ specifies overrides for these arguments.
+
+   #+BEGIN_SRC dockerfile :tangle "Dockerfile"
+     FROM clojure
+
+     WORKDIR /app
+
+     ADD ./project.clj /app
+
+     RUN lein deps
+
+     ADD ./src /app/src
+
+     ENTRYPOINT ["lein", "run"]
+
+     CMD ["Tomaat Running", "25"]
+   #+END_SRC
+
+   We can now build the docker image from this docker file. The
+   dockerfile assumes that tangling has happened though, so we do that
+   first. 
+   
+   #+BEGIN_SRC sh :tangle build-docker-image.sh :tangle-mode (identity #o755)
+     ./tangle.sh
+     sudo docker build -t tomaten:1.0.0 .
+   #+END_SRC
+
+* The leiningen project file
+  Our leiningen project fiile is rather slimmed down. We only take a
+  dependency on clojure itself (version 1.9) and point to the main
+  entry point for the project.
+  #+BEGIN_SRC clojure :tangle "project.clj"
+    (defproject tomaat "1.0.0"
+      :dependencies [[org.clojure/clojure "1.9.0"]]
+      :main tomaat.core)
+  #+END_SRC
 * The core namespace
   The core namespace exposes the [[Define start-tomaat][start-tomaat]] function. But we need
   some helper functionality before we can define it. First we create
   the core namespace definition.
 
-  At moment we only require the tomaat.ui-utils namespace, without
-  aliasing it as it is only used in [[Define start-tomaat][start-tomaat]]. Likewise, we don't
-  import some java.time types, as only [[A helper to format the current time][current-time-str]] makes use of
-  them.
-
+  We add the ~gen-class~ marker to have clojure generate a java class
+  file for the namespace. This is necessary, as we point to this
+  namespace from the leiningen project file as being the main
+  namespace.
+  
    #+BEGIN_SRC clojure :tangle "src/tomaat/core.clj"
      (ns tomaat.core
-       (:require [tomaat.ui-utils]))
+       (:gen-class))
    #+END_SRC
-
-   #+RESULTS:
-   : nil
 
 ** A helper to express time periods
    We would like to express a duration as a vector of 2 elements;
@@ -111,9 +152,6 @@
          :minutes (* v 60 1000)))
    #+END_SRC
 
-   #+RESULTS:
-   : #'user/->ms
-
 ** A helper to format the current time
    Our output will mention the current time. We want it reported with
    just the current hour and minutes. Function current-time-str
@@ -130,9 +168,6 @@
            (.format time-format)))
    #+END_SRC
 
-   #+RESULTS:
-   : #'user/time-format#'user/current-time-str
-
 ** A helper to show formatted messages in the terminal
    Show messages with the current time in the terminal.
 
@@ -143,10 +178,6 @@
        [task-label message]
        (println (str (current-time-str) " Tomaat '" task-label "' - " message)))
    #+END_SRC
-
-   #+RESULTS:
-   : #'user/terminal-message
-
 
 ** Define start-tomaat
    As mentioned, we want the user to pass a label that identifies the
@@ -173,17 +204,10 @@
        terminal, otherwise both the terminal and a message box signal the
        end of the tomaat."
        [task-label & {:keys [duration silent] :or {duration [25 :minutes]}}]
-       (terminal-message task-label "Started.")
+       (terminal-message task-label (str "Started. (" (first duration) " min.)"))
        (Thread/sleep (->ms duration))
-       (terminal-message task-label "Finished! Consider taking a break now.")
-       (when-not silent
-         (tomaat.ui-utils/popup-message
-          "Tomaat Finished!"
-          (str "Tomaat '" task-label "' Finished! Consider taking a break now."))))
+       (terminal-message task-label "Finished! Consider taking a break now."))
    #+END_SRC
-
-   #+RESULTS:
-   : #'user/start-tomaat
 
 ** Create a main entrypoint
    In order to run as a cli program, and not just from the clojure
@@ -204,22 +228,3 @@
        (System/exit 0))
    #+END_SRC
 
-   #+RESULTS:
-   : #'user/-main
-
-* The ui-utils namespace
-  When a tomaat is finished, perhaps a more noticable message than
-  mere reporting the fact to standard out is desired. This namespace
-  exposes a function for showing message boxes with a title and a
-  message.
-
-** A helper to pop up a message box
-  #+BEGIN_SRC clojure :tangle "src/tomaat/ui_utils.clj"
-    (ns tomaat.ui-utils)
-
-    (defn popup-message
-      "Show a popup message box in the middle of the UI."
-      [title message]
-      (javax.swing.JOptionPane/showMessageDialog
-       nil message title javax.swing.JOptionPane/INFORMATION_MESSAGE))
-  #+END_SRC
